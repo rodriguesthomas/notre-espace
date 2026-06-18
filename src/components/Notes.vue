@@ -1,62 +1,101 @@
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
+// 1. On connecte notre client Supabase
+import { supabase } from '../supabase';
 
-// 1. Liste dynamique des pages de notes (onglets)
-const noteCategories = ref([
-  { id: 'courses', name: '🛒 Courses' },
-  { id: 'idees', name: '💡 Idées cadeaux' }
-]);
-
-// Page active par défaut
-const activeCategoryId = ref('courses');
-
-// 2. Base de données locale des notes (sous forme de blocs textuels)
-const tasksByCategory = ref({
-  courses: [
-    { text: 'Prendre du pain aux céréales et du lait d\'avoine 🌾' },
-    { text: 'Penser aux avocats pour ce soir ! 🥑' }
-  ],
-  idees: [
-    { text: 'Pour son anniv : Le pull en maille beige qu\'elle a vu en boutique 🎁' },
-    { text: 'Un petit appareil photo argentique jetable 📸' }
-  ]
-});
+// Listes dynamiques synchronisées avec Supabase
+const noteCategories = ref([]);
+const activeCategoryId = ref('');
+const allNotes = ref([]);
 
 // Variable pour le champ d'écriture
 const newTaskText = ref('');
 
-// Récupération automatique des notes de la page sélectionnée
+// Récupération automatique des notes de la catégorie sélectionnée
 const currentTasks = computed(() => {
-  return tasksByCategory.value[activeCategoryId.value] || [];
+  return allNotes.value.filter(note => note.category_id === activeCategoryId.value);
 });
 
-// 3. Ajouter une NOUVELLE PAGE de notes avec un nom (+)
-const createNewCategory = () => {
+// --- FONCTIONS CLOUD SUPABASE ---
+
+// Charger toutes les données depuis Supabase au démarrage
+const loadData = async () => {
+  // 1. On récupère les catégories
+  const { data: categories } = await supabase
+    .from('note_categories') // Assure-toi que le nom de ta table correspond bien sur Supabase
+    .select('*');
+    
+  if (categories && categories.length > 0) {
+    noteCategories.value = categories;
+    // Si aucune catégorie n'est active, on prend la première par défaut
+    if (!activeCategoryId.value) {
+      activeCategoryId.value = categories[0].id;
+    }
+  }
+
+  // 2. On récupère toutes les notes
+  const { data: notes } = await supabase
+    .from('notes')
+    .select('*');
+    
+  if (notes) {
+    // On re-mappe les données pour correspondre à ton affichage textuel
+    allNotes.value = notes.map(n => ({
+      id: n.id,
+      text: n.content, // convertit le champ 'content' de Supabase en 'text'
+      category_id: n.category_id
+    }));
+  }
+};
+
+// Ajouter une NOUVELLE PAGE/CATÉGORIE de notes (+)
+const createNewCategory = async () => {
   const name = prompt('Quel est le nom de ta nouvelle page de notes ?');
   
   if (name && name.trim() !== '') {
-    const newId = 'cat_' + Date.now();
+    const cleanName = name.trim();
     
-    noteCategories.value.push({
-      id: newId,
-      name: name.trim()
-    });
-    
-    tasksByCategory.value[newId] = []; // Initialise la page vide
-    activeCategoryId.value = newId;    // Bascule dessus
+    // Insertion dans Supabase
+    const { data, error } = await supabase
+      .from('note_categories')
+      .insert([{ name: cleanName }])
+      .select();
+
+    if (!error && data) {
+      // On recharge tout pour avoir les derniers IDs générés par Supabase
+      await loadData();
+      activeCategoryId.value = data[0].id; // Bascule sur la nouvelle
+    }
   }
 };
 
 // Ajouter une note sur la page actuelle
-const addTask = () => {
-  if (newTaskText.value.trim() === '') return;
+const addTask = async () => {
+  if (newTaskText.value.trim() === '' || !activeCategoryId.value) return;
 
-  currentTasks.value.push({
-    text: newTaskText.value.trim()
-  });
+  const textToSend = newTaskText.value.trim();
+  newTaskText.value = ''; // Vide l'input immédiatement pour le confort visuel
 
-  newTaskText.value = ''; // Vide l'input
+  // Insertion directe dans la table 'notes' sur Supabase
+  const { error } = await supabase
+    .from('notes')
+    .insert([
+      { 
+        content: textToSend, 
+        category_id: activeCategoryId.value 
+      }
+    ]);
+
+  if (!error) {
+    // On rafraîchit les notes locales depuis le cloud
+    await loadData();
+  }
 };
+
+// Lancer le chargement des données quand le composant apparaît
+onMounted(() => {
+  loadData();
+});
 </script>
 
 <template>
