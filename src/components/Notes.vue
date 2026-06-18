@@ -1,6 +1,203 @@
-<template> </template>
+<script setup>
+import { ref, computed } from 'vue';
 
+// 1. Liste dynamique des pages de notes (onglets)
+const noteCategories = ref([
+  { id: 'courses', name: '🛒 Courses' },
+  { id: 'idees', name: '💡 Idées cadeaux' }
+]);
 
-<script setup> </script>
+// Page active par défaut
+const activeCategoryId = ref('courses');
 
-<style scoped> </style>
+// 2. Base de données locale des notes (sous forme de blocs textuels)
+const tasksByCategory = ref({
+  courses: [
+    { text: 'Prendre du pain aux céréales et du lait d\'avoine 🌾' },
+    { text: 'Penser aux avocats pour ce soir ! 🥑' }
+  ],
+  idees: [
+    { text: 'Pour son anniv : Le pull en maille beige qu\'elle a vu en boutique 🎁' },
+    { text: 'Un petit appareil photo argentique jetable 📸' }
+  ]
+});
+
+// Variable pour le champ d'écriture
+const newTaskText = ref('');
+
+// Récupération automatique des notes de la page sélectionnée
+const currentTasks = computed(() => {
+  return tasksByCategory.value[activeCategoryId.value] || [];
+});
+
+// 3. Ajouter une NOUVELLE PAGE de notes avec un nom (+)
+const createNewCategory = () => {
+  const name = prompt('Quel est le nom de ta nouvelle page de notes ?');
+  
+  if (name && name.trim() !== '') {
+    const newId = 'cat_' + Date.now();
+    
+    noteCategories.value.push({
+      id: newId,
+      name: name.trim()
+    });
+    
+    tasksByCategory.value[newId] = []; // Initialise la page vide
+    activeCategoryId.value = newId;    // Bascule dessus
+  }
+};
+
+// Ajouter une note sur la page actuelle
+const addTask = () => {
+  if (newTaskText.value.trim() === '') return;
+
+  currentTasks.value.push({
+    text: newTaskText.value.trim()
+  });
+
+  newTaskText.value = ''; // Vide l'input
+};
+</script>
+
+<template>
+  <div class="notes-container">
+    <div class="notes-header">
+      <span 
+        v-for="cat in noteCategories" 
+        :key="cat.id"
+        class="category-tab" 
+        :class="{ active: activeCategoryId === cat.id }" 
+        @click="activeCategoryId = cat.id"
+      >
+        {{ cat.name }}
+      </span>
+      <span class="category-tab add-btn" @click="createNewCategory">+</span>
+    </div>
+    
+    <div class="tasks-flow">
+      <div v-for="(note, index) in currentTasks" :key="index" class="note-block">
+        <p class="note-text">{{ note.text }}</p>
+      </div>
+      
+      <p v-if="currentTasks.length === 0" class="empty-notes">
+        Cette page de notes est vide. Écris un petit mot en bas ! 📝
+      </p>
+    </div>
+
+    <div class="notes-input-zone">
+      <input 
+        v-model="newTaskText" 
+        type="text" 
+        placeholder="Écrire une note..." 
+        @keydown.enter="addTask"
+      />
+      <button @click="addTask">➔</button>
+    </div>
+  </div>
+</template>
+
+<style scoped>
+.notes-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  justify-content: space-between;
+}
+.notes-header {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 1rem;
+  border-bottom: 1px solid #f1eeeb;
+  padding-bottom: 0.5rem;
+  flex-wrap: wrap;
+}
+.category-tab {
+  font-size: 0.8rem;
+  padding: 4px 10px;
+  background: #f1eeeb;
+  color: #8c7e74;
+  border-radius: 20px;
+  cursor: pointer;
+  font-weight: bold;
+  user-select: none;
+}
+.category-tab.active {
+  background: #d47a6a;
+  color: white;
+}
+.add-btn {
+  background: #cbd5e1;
+  color: #475569;
+}
+
+/* DESIGN DES BLOCS DE NOTES COCON */
+.tasks-flow {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: 1;
+  overflow-y: auto;
+  margin-bottom: 10px;
+  padding-right: 4px;
+}
+.note-block {
+  background: #fffdfa;
+  border-left: 4px solid #d47a6a; /* Petit liseré terracotta chaleureux */
+  padding: 10px 14px;
+  border-radius: 4px 12px 12px 4px;
+  box-shadow: 0 2px 8px rgba(92, 77, 66, 0.04);
+  border-top: 1px solid #f6f2ec;
+  border-right: 1px solid #f6f2ec;
+  border-bottom: 1px solid #e3ded7;
+}
+.note-text {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.4;
+  color: #4a3e3d;
+}
+.empty-notes {
+  text-align: center;
+  color: #bdafa4;
+  font-size: 0.85rem;
+  font-style: italic;
+  margin-top: 20px;
+}
+
+/* BARRE EN BAS POUR AJOUTER UNE NOTE */
+.notes-input-zone {
+  display: flex;
+  gap: 6px;
+  border-top: 1px solid #f1eeeb;
+  padding-top: 8px;
+  background: #fffdfa;
+  position: relative;
+  z-index: 999;
+}
+.notes-input-zone input {
+  flex: 1;
+  border: 1px solid #e3ded7;
+  border-radius: 20px;
+  padding: 8px 14px;
+  font-size: 0.9rem;
+  background: #fffdfa;
+  color: #5c4d42;
+  outline: none;
+}
+.notes-input-zone input:focus {
+  border-color: #d47a6a;
+}
+.notes-input-zone button {
+  background: #d47a6a;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+}
+</style>
