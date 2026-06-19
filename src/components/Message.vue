@@ -1,5 +1,12 @@
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
+
+// Récupération de la session utilisateur
+const currentUser = ref('thomas');
+
+onMounted(() => {
+  currentUser.value = localStorage.getItem('currentUser') || 'thomas';
+});
 
 // 1. Liste dynamique des thèmes (catégories)
 const topics = ref([
@@ -7,67 +14,55 @@ const topics = ref([
   { id: 'droles', name: '😂 Moments drôles' }
 ]);
 
-// Thème sélectionné par défaut (on stocke l'id)
 const activeTopicId = ref('admin');
 
-// 2. Base de données locale des messages, triée par l'id du thème
+// 2. Base de données locale synchronisée avec les identifiants réels
 const messagesByTopic = ref({
   admin: [
-    { sender: 'Lui', text: 'Tu as pensé à réserver le resto pour ce soir ? 🤔', isMe: true },
-    { sender: 'Elle', text: 'Oui c\'est fait ! Table réservée pour 20h pile ❤️', isMe: false }
+    { sender: 'thomas', text: 'Tu as pensé à réserver le resto pour ce soir ? 🤔' },
+    { sender: 'zoe', text: 'Oui c\'est fait ! Table réservée pour 20h pile ❤️' }
   ],
   droles: [
-    { sender: 'Elle', text: 'Tu as encore mis tes chaussettes à côté du bac ! 🧺', isMe: false },
-    { sender: 'Lui', text: 'C\'était pour décorer le salon... 😇', isMe: true }
+    { sender: 'zoe', text: 'Tu as encore mis tes chaussettes à côté du bac ! 🧺' },
+    { sender: 'thomas', text: 'C\'était pour décorer le salon... 😇' }
   ]
 });
 
-// Variable pour l'input d'envoi d'un nouveau message
 const newMessageText = ref('');
 
-// Calcul automatique pour récupérer les messages du thème actif
+// Filtre automatique des messages selon l'onglet actif
 const currentMessages = computed(() => {
   return messagesByTopic.value[activeTopicId.value] || [];
 });
 
-// 3. Fonction pour ajouter une nouvelle messagerie (+)
+// Création d'une nouvelle catégorie
 const createNewTopic = () => {
   const name = prompt('Quel est le nom de la nouvelle messagerie ?');
   
   if (name && name.trim() !== '') {
-    // Génère un ID unique simple basé sur le timestamp
     const newId = 'topic_' + Date.now();
-    
-    // Ajoute le thème dans la liste du haut
-    topics.value.push({
-      id: newId,
-      name: name.trim()
-    });
-    
-    // Initialise un tableau de messages vide pour cette nouvelle catégorie
+    topics.value.push({ id: newId, name: name.trim() });
     messagesByTopic.value[newId] = [];
-    
-    // Bascule automatiquement sur la nouvelle messagerie créée
     activeTopicId.value = newId;
   }
 };
 
-// Fonction bonus : Envoyer un message dans le thème actif
+// Envoi du message avec l'auteur dynamique de la session
 const sendMessage = () => {
   if (newMessageText.value.trim() === '') return;
 
   currentMessages.value.push({
-    sender: 'Lui', // Par défaut "Lui", à lier plus tard avec l'utilisateur connecté
-    text: newMessageText.value.trim(),
-    isMe: true
+    sender: currentUser.value,
+    text: newMessageText.value.trim()
   });
 
-  newMessageText.value = ''; // Vide la barre d'envoi
+  newMessageText.value = ''; 
 };
 </script>
 
 <template>
   <div class="chat-container">
+    
     <div class="chat-header">
       <span 
         v-for="topic in topics" 
@@ -86,9 +81,14 @@ const sendMessage = () => {
         v-for="(msg, index) in currentMessages" 
         :key="index"
         class="bubble" 
-        :class="msg.isMe ? 'me' : 'her'"
+        :class="[
+          msg.sender === currentUser ? 'me' : 'other',
+          msg.sender === 'thomas' ? 'bg-thomas' : 'bg-zoe'
+        ]"
       >
-        <span class="sender">{{ msg.sender }}</span>
+        <span class="sender">
+          {{ msg.sender === currentUser ? 'Moi' : (msg.sender === 'thomas' ? 'Thomas' : 'Zoé') }}
+        </span>
         <p>{{ msg.text }}</p>
       </div>
       
@@ -106,6 +106,7 @@ const sendMessage = () => {
       />
       <button @click="sendMessage">➔</button>
     </div>
+
   </div>
 </template>
 
@@ -122,7 +123,7 @@ const sendMessage = () => {
   margin-bottom: 1rem;
   border-bottom: 1px solid #f1eeeb;
   padding-bottom: 0.5rem;
-  flex-wrap: wrap; /* Permet aux thèmes de passer à la ligne s'il y en a beaucoup */
+  flex-wrap: wrap;
 }
 .topic {
   font-size: 0.8rem;
@@ -166,24 +167,35 @@ const sendMessage = () => {
   font-weight: bold;
   display: block;
   margin-bottom: 2px;
-  color: #8c7e74;
 }
+
+/* --- ALIGNEMENT DES BULLES (POSITION) --- */
 .bubble.me {
-  background-color: #f5f1ea;
-  align-self: flex-start;
-  border-bottom-left-radius: 4px;
-  color: #5c4d42;
-}
-.bubble.her {
-  background-color: #fbeee9;
-  align-self: flex-end;
+  align-self: flex-end; /* Mes messages vont à droite */
   border-bottom-right-radius: 4px;
-  color: #5c4d42;
 }
-.bubble.her .sender {
-  color: #d47a6a;
-  text-align: right;
+.bubble.other {
+  align-self: flex-start; /* Les messages de l'autre vont à gauche */
+  border-bottom-left-radius: 4px;
 }
+
+/* --- DESIGN DES COULEURS ATTRIBUÉES AUX PRÉNOMS --- */
+.bg-thomas {
+  background-color: #7fa4c4 !important; /* Bleu Thomas fixe */
+  color: white !important;
+}
+.bg-thomas .sender {
+  color: #e2e8f0 !important;
+}
+
+.bg-zoe {
+  background-color: #d47a6a !important; /* Terracotta Zoé fixe */
+  color: white !important;
+}
+.bg-zoe .sender {
+  color: #fbeee9 !important;
+}
+
 .empty-chat {
   text-align: center;
   color: #bdafa4;
@@ -192,17 +204,16 @@ const sendMessage = () => {
   margin-top: 20px;
 }
 
-/* STYLE DU BLOC D'ENVOI MIS À JOUR */
+/* ZONE D'INPUT */
 .chat-input-zone {
   display: flex;
   gap: 6px;
   border-top: 1px solid #f1eeeb;
   padding-top: 8px;
-  background: #fffdfa; /* On force le fond blanc pour l'input */
+  background: #fffdfa;
   position: relative;
-  z-index: 999; /* Force l'input à passer AU-DESSUS de tout le monde pour capter les clics */
+  z-index: 999;
 }
-
 .chat-input-zone input {
   flex: 1;
   border: 1px solid #e3ded7;
@@ -213,11 +224,9 @@ const sendMessage = () => {
   color: #5c4d42;
   outline: none;
 }
-
 .chat-input-zone input:focus {
   border-color: #d47a6a;
 }
-
 .chat-input-zone button {
   background: #d47a6a;
   color: white;
