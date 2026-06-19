@@ -144,8 +144,14 @@ onMounted(() => {
     </div>
     
     <div class="tasks-flow">
-      <div v-for="(note, index) in currentTasks" :key="index" class="note-block">
-        <p class="note-text">{{ note.text }}</p>
+      <div v-for="note in currentTasks" :key="note.id" class="note-block">
+        <div class="note-content-row">
+          <p class="note-text">{{ note.text }}</p>
+          <div class="note-actions">
+            <button @click="editNote(note)" class="action-btn edit-btn" title="Modifier">✏️</button>
+            <button @click="deleteNote(note.id)" class="action-btn delete-btn" title="Supprimer">🗑️</button>
+          </div>
+        </div>
       </div>
       
       <p v-if="currentTasks.length === 0" class="empty-notes">
@@ -268,5 +274,38 @@ onMounted(() => {
   align-items: center;
   justify-content: center;
   font-weight: bold;
+}
+
+.note-content-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.note-actions {
+  display: flex;
+  gap: 6px;
+  opacity: 0.6;
+  transition: opacity 0.2s;
+}
+
+/* Les boutons n'apparaissent bien nets que quand on passe la souris dessus */
+.note-block:hover .note-actions {
+  opacity: 1;
+}
+
+.action-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 0.9rem;
+  padding: 2px;
+  border-radius: 4px;
+  transition: transform 0.1s;
+}
+
+.action-btn:hover {
+  transform: scale(1.2);
 }
 </style>
