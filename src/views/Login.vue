@@ -19,7 +19,7 @@ const handleLogin = () => {
 <template>
   <div class="login-container">
     <div class="login-card">
-      <h2>❤️ Notre Cocon</h2>
+      <h2>Notre Espace</h2>
       <p>Connecte-toi pour rejoindre notre espace</p>
       
       <div class="input-group">
