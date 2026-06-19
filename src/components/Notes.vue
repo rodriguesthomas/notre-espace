@@ -69,26 +69,37 @@ const createNewCategory = async () => {
   }
 };
 
-// Ajouter une note sur la page actuelle
 const addTask = async () => {
   if (newTaskText.value.trim() === '' || !activeCategoryId.value) return;
 
   const textToSend = newTaskText.value.trim();
-  newTaskText.value = ''; // Vide l'input immédiatement pour le confort visuel
+  newTaskText.value = ''; // Vide immédiatement le champ de saisie
 
-  // Insertion directe dans la table 'notes' sur Supabase
-  const { error } = await supabase
+  // Création de l'objet temporaire pour déclencher l'animation d'entrée
+  const temporaryId = Date.now();
+  const newNoteObject = {
+    id: temporaryId,
+    text: textToSend,
+    category_id: activeCategoryId.value
+  };
+  
+  allNotes.value.push(newNoteObject);
+
+  // Envoi à Supabase en tâche de fond
+  const { data, error } = await supabase
     .from('notes')
-    .insert([
-      { 
-        content: textToSend, 
-        category_id: activeCategoryId.value 
-      }
-    ]);
+    .insert([{ content: textToSend, category_id: activeCategoryId.value }])
+    .select(); // On demande à Supabase de nous renvoyer la ligne créée
 
-  if (!error) {
-    // On rafraîchit les notes locales depuis le cloud
-    await loadData();
+  if (error) {
+    allNotes.value = allNotes.value.filter(n => n.id !== temporaryId);
+    alert("Erreur d'enregistrement");
+  } else if (data && data.length > 0) {
+    // Au lieu de tout recharger, on remplace juste l'ID temporaire par le vrai ID généré
+    const targetNote = allNotes.value.find(n => n.id === temporaryId);
+    if (targetNote) {
+      targetNote.id = data[0].id;
+    }
   }
 };
 
@@ -156,7 +167,7 @@ onMounted(() => {
         </div>
       </TransitionGroup>
       
-      <p v-if="currentTasks.length === 0" class="empty-notes">
+      <p v-show="currentTasks.length === 0" class="empty-notes">
         Cette page de notes est vide. Écris un petit mot en bas ! 📝
       </p>
     </div>
@@ -311,39 +322,44 @@ onMounted(() => {
   transform: scale(1.2);
 }
 
-/* Conteneur de la liste animée */
+/* Conteneur principal */
 .animated-list {
   display: flex;
   flex-direction: column;
   gap: 10px;
+  position: relative; /* Crucial pour le positionnement absolu lors du leave */
 }
 
-/* 1. Effet d'entrée (quand on ajoute une note) et de sortie (quand on supprime) */
+/* --- ÉTAPE 1 : L'ENTRÉE (Ajout) --- */
+/* Point de départ de l'animation */
 .list-enter-from {
   opacity: 0;
-  transform: translateY(20px); /* Glisse depuis le bas */
+  transform: scale(0.9) translateY(15px);
 }
 
+/* --- ÉTAPE 2 : LA SORTIE (Suppression) --- */
+/* Point d'arrivée de la suppression */
 .list-leave-to {
   opacity: 0;
-  transform: translateX(30px); /* S'échappe par la droite quand on supprime */
+  transform: scale(0.9) translateX(30px);
 }
 
-/* 2. Durée et fluidité de l'animation */
-.list-enter-active,
+/* --- ÉTAPE 3 : LES DURÉES ET FLUIDITÉS --- */
+.list-enter-active {
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); /* Effet rebond doux */
+}
+
 .list-leave-active {
-  transition: all 0.4s ease;
-}
-
-/* 3. Animation fluide des autres éléments qui se déplacent pour laisser la place */
-.list-move {
-  transition: transform 0.4s ease;
-}
-
-/* Assure que l'élément supprimé ne bloque pas l'espace pendant son animation de sortie */
-.list-leave-active {
+  transition: all 0.25s ease-in;
+  /* Garde la largeur exacte pendant que l'élément s'en va */
   position: absolute;
-  width: 100%;
-  box-sizing: border-box;
+  left: 0;
+  right: 0;
+}
+
+/* --- ÉTAPE 4 : LE DÉPLACEMENT DES AUTRES NOTES --- */
+/* Anime la transition des éléments restants qui se replacent */
+.list-move {
+  transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1);
 }
 </style>
