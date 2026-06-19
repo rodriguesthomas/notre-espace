@@ -92,6 +92,36 @@ const addTask = async () => {
   }
 };
 
+// Supprimer une note définitivement de Supabase
+const deleteNote = async (id) => {
+  const { error } = await supabase
+    .from('notes')
+    .delete()
+    .eq('id', id);
+
+  if (!error) {
+    // On rafraîchit la liste locale pour faire disparaître la note
+    await loadData();
+  }
+};
+
+// Modifier une note existante
+const editNote = async (note) => {
+  const newText = prompt('Modifier ta note :', note.text);
+  
+  if (newText && newText.trim() !== '' && newText.trim() !== note.text) {
+    const { error } = await supabase
+      .from('notes')
+      .update({ content: newText.trim() })
+      .eq('id', note.id);
+
+    if (!error) {
+      // On rafraîchit l'affichage
+      await loadData();
+    }
+  }
+};
+
 // Lancer le chargement des données quand le composant apparaît
 onMounted(() => {
   loadData();
