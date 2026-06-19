@@ -144,15 +144,17 @@ onMounted(() => {
     </div>
     
     <div class="tasks-flow">
-      <div v-for="note in currentTasks" :key="note.id" class="note-block">
-        <div class="note-content-row">
-          <p class="note-text">{{ note.text }}</p>
-          <div class="note-actions">
-            <button @click="editNote(note)" class="action-btn edit-btn" title="Modifier">✏️</button>
-            <button @click="deleteNote(note.id)" class="action-btn delete-btn" title="Supprimer">🗑️</button>
+      <TransitionGroup name="list" tag="div" class="animated-list">
+        <div v-for="note in currentTasks" :key="note.id" class="note-block">
+          <div class="note-content-row">
+            <p class="note-text">{{ note.text }}</p>
+            <div class="note-actions">
+              <button @click="editNote(note)" class="action-btn edit-btn" title="Modifier">✏️</button>
+              <button @click="deleteNote(note.id)" class="action-btn delete-btn" title="Supprimer">🗑️</button>
+            </div>
           </div>
         </div>
-      </div>
+      </TransitionGroup>
       
       <p v-if="currentTasks.length === 0" class="empty-notes">
         Cette page de notes est vide. Écris un petit mot en bas ! 📝
@@ -307,5 +309,41 @@ onMounted(() => {
 
 .action-btn:hover {
   transform: scale(1.2);
+}
+
+/* Conteneur de la liste animée */
+.animated-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* 1. Effet d'entrée (quand on ajoute une note) et de sortie (quand on supprime) */
+.list-enter-from {
+  opacity: 0;
+  transform: translateY(20px); /* Glisse depuis le bas */
+}
+
+.list-leave-to {
+  opacity: 0;
+  transform: translateX(30px); /* S'échappe par la droite quand on supprime */
+}
+
+/* 2. Durée et fluidité de l'animation */
+.list-enter-active,
+.list-leave-active {
+  transition: all 0.4s ease;
+}
+
+/* 3. Animation fluide des autres éléments qui se déplacent pour laisser la place */
+.list-move {
+  transition: transform 0.4s ease;
+}
+
+/* Assure que l'élément supprimé ne bloque pas l'espace pendant son animation de sortie */
+.list-leave-active {
+  position: absolute;
+  width: 100%;
+  box-sizing: border-box;
 }
 </style>
