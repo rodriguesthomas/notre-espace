@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue';
-import { supabase } from '../supabase'; // Adapte le chemin vers ton fichier supabase.js si besoin
+import { supabase } from '../supabase'; 
 
 // Session utilisateur
 const currentUser = ref('thomas');
@@ -16,7 +16,7 @@ const messages = ref([]);
 const newMessageText = ref('');
 let realtimeSubscription = null;
 
-// Filter les messages selon la catégorie active
+// Filtrer les messages selon la catégorie active
 const currentMessages = computed(() => {
   return messages.value.filter(msg => msg.topic_id === activeTopicId.value);
 });
@@ -26,7 +26,7 @@ const fetchMessages = async () => {
   const { data, error } = await supabase
     .from('messages')
     .select('*')
-    .order('created_at', { ascending: true });
+    .order('id', { ascending: true });
 
   if (error) {
     console.error('Erreur chargement messages :', error);
@@ -41,12 +41,10 @@ const subscribeToMessages = () => {
     .channel('public:messages')
     .on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, (payload) => {
       if (payload.eventType === 'INSERT') {
-        // Ajouter le nouveau message s'il n'est pas déjà dans la liste
         if (!messages.value.some(m => m.id === payload.new.id)) {
           messages.value.push(payload.new);
         }
       } else if (payload.eventType === 'DELETE') {
-        // Retirer le message supprimé
         messages.value = messages.value.filter(m => m.id !== payload.old.id);
       }
     })
@@ -89,15 +87,15 @@ const sendPushNotification = async (messageText) => {
   }
 };
 
-// ✉️ Envoi d'un message dans Supabase
+// ✉️ Envoi d'un message dans Supabase (Noms des colonnes corrigés !)
 const sendMessage = async () => {
   const text = newMessageText.value.trim();
   if (text === '') return;
 
   const newMsg = {
     topic_id: activeTopicId.value,
-    sender: currentUser.value,
-    text: text
+    sender_name: currentUser.value, // <-- Corrigé selon ta BDD
+    content: text                    // <-- Corrigé selon ta BDD
   };
 
   newMessageText.value = '';
@@ -112,7 +110,7 @@ const sendMessage = async () => {
     console.error('Erreur lors de l\'envoi :', error);
   } else if (data && data[0]) {
     messages.value.push(data[0]);
-    // Déclenche la notification Push chez l'autre
+    // Déclenche la notification Push
     sendPushNotification(text);
   }
 };
@@ -166,16 +164,16 @@ const createNewTopic = () => {
         :key="msg.id"
         class="bubble" 
         :class="[
-          msg.sender === currentUser ? 'me' : 'other',
-          msg.sender === 'thomas' ? 'bg-thomas' : 'bg-zoe'
+          msg.sender_name === currentUser ? 'me' : 'other',
+          msg.sender_name === 'thomas' ? 'bg-thomas' : 'bg-zoe'
         ]"
       >
         <div class="bubble-header">
           <span class="sender">
-            {{ msg.sender === currentUser ? 'Moi' : (msg.sender === 'thomas' ? 'Thomas' : 'Zoé') }}
+            {{ msg.sender_name === currentUser ? 'Moi' : (msg.sender_name === 'thomas' ? 'Thomas' : 'Zoé') }}
           </span>
           <button 
-            v-if="msg.sender === currentUser" 
+            v-if="msg.sender_name === currentUser" 
             class="delete-btn" 
             title="Supprimer"
             @click="deleteMessage(msg.id)"
@@ -183,7 +181,7 @@ const createNewTopic = () => {
             ✕
           </button>
         </div>
-        <p>{{ msg.text }}</p>
+        <p>{{ msg.content }}</p>
       </div>
       
       <p v-if="currentMessages.length === 0" class="empty-chat">
