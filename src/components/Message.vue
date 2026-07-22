@@ -87,15 +87,15 @@ const sendPushNotification = async (messageText) => {
   }
 };
 
-// ✉️ Envoi d'un message dans Supabase (Noms des colonnes corrigés !)
+// ✉️ Envoi d'un message dans Supabase avec affichage de l'erreur
 const sendMessage = async () => {
   const text = newMessageText.value.trim();
   if (text === '') return;
 
   const newMsg = {
     topic_id: activeTopicId.value,
-    sender_name: currentUser.value, // <-- Corrigé selon ta BDD
-    content: text                    // <-- Corrigé selon ta BDD
+    sender_name: currentUser.value,
+    content: text
   };
 
   newMessageText.value = '';
@@ -107,10 +107,11 @@ const sendMessage = async () => {
     .select();
 
   if (error) {
-    console.error('Erreur lors de l\'envoi :', error);
+    // 🚨 Affiche l'erreur exacte à l'écran
+    alert('Erreur Supabase : ' + error.message);
+    console.error('Détails de l\'erreur :', error);
   } else if (data && data[0]) {
     messages.value.push(data[0]);
-    // Déclenche la notification Push
     sendPushNotification(text);
   }
 };
