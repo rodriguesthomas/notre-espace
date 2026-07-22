@@ -23,7 +23,7 @@ onMounted(() => {
 
 // Déclencheur sur clic (exigé par Apple sur iPhone)
 const enableNotifications = async () => {
-  // Vérification de sécurité
+  // Vérification de sécurité essai
   if (!window.OneSignalDeferred) {
     alert("Le script OneSignal n'est pas encore chargé. Attends 2 secondes et réessaie.");
     return;
