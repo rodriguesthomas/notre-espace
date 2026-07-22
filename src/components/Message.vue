@@ -63,13 +63,14 @@ onUnmounted(() => {
   }
 });
 
-// 🔔 Envoi de la notification Push
 const sendPushNotification = async (messageText) => {
-  const partnerUser = currentUser.value === 'thomas' ? 'zoe' : 'thomas';
-  const senderName = currentUser.value === 'thomas' ? 'Thomas' : 'Zoé';
+  // On récupère qui envoie et qui doit recevoir
+  const sender = (localStorage.getItem('currentUser') || 'thomas').toLowerCase();
+  const partnerUser = sender === 'thomas' ? 'zoe' : 'thomas';
+  const senderName = sender === 'thomas' ? 'Thomas' : 'Zoé';
 
   try {
-    const res = await fetch('https://onesignal.com/api/v1/notifications', {
+    const response = await fetch('https://onesignal.com/api/v1/notifications', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json; charset=utf-8',
@@ -77,23 +78,20 @@ const sendPushNotification = async (messageText) => {
       },
       body: JSON.stringify({
         app_id: 'cb8bf7f6-4a91-4c8c-aacc-894d16a98991',
-        // Ciblage multi-méthodes pour assurer la compatibilité iOS / Android / Web
+        // On envoie à tous les identifiants possibles de l'autre personne
         include_external_user_ids: [partnerUser],
-        filters: [
-          { field: 'tag', key: 'user_id', relation: '=', value: partnerUser }
-        ],
+        channel_for_external_user_ids: 'push',
         headings: { fr: `Nouveau message de ${senderName} 💌` },
         contents: { fr: messageText }
       })
     });
 
-    const data = await res.json();
-    console.log('Résultat d\'envoi OneSignal :', data);
+    const result = await response.json();
+    console.log('Réponse OneSignal :', result);
   } catch (err) {
-    console.error("Erreur d'envoi notification :", err);
+    console.error("Erreur envoi notification :", err);
   }
 };
-
 // ✉️ Envoi d'un message dans Supabase avec affichage de l'erreur
 const sendMessage = async () => {
   const text = newMessageText.value.trim();

@@ -3,23 +3,31 @@ import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 
 const router = useRouter();
-const username = ref('');
+const username = ref(''); // ou le champ de ton prénom
 const password = ref('');
-const errorMessage = ref('');
 
 const handleLogin = () => {
-  const user = username.value.trim().toLowerCase();
-  const pass = password.value.trim();
+  // 1. On nettoie le prénom (ex: "Thomas" devient "thomas")
+  const formattedUser = username.value.trim().toLowerCase();
 
-  if (user === 'thomas' && pass === 'JAIMEZOE') {
-    localStorage.setItem('currentUser', 'thomas');
-    router.push('/home');
-  } else if (user === 'zoe' && pass === 'JAIMETHOMAS') {
-    localStorage.setItem('currentUser', 'zoe');
-    router.push('/home');
-  } else {
-    errorMessage.value = "Identifiant ou mot de passe incorrect... 😢";
+  // 2. 💾 ON SAUVEGARDE DÉFINITIVEMENT DANS LE TÉLÉPHONE
+  localStorage.setItem('currentUser', formattedUser);
+  localStorage.setItem('isAuthenticated', 'true');
+
+  // 3. 🔔 ON ENREGISTRE LE PRÉNOM CHEZ ONESIGNAL
+  if (window.OneSignal) {
+    window.OneSignal.push(async () => {
+      if (typeof window.OneSignal.login === 'function') {
+        await window.OneSignal.login(formattedUser);
+      }
+      if (typeof window.OneSignal.setExternalUserId === 'function') {
+        await window.OneSignal.setExternalUserId(formattedUser);
+      }
+    });
   }
+
+  // 4. On redirige vers la page principale
+  router.push('/home'); // ou ta route principale
 };
 </script>
 
