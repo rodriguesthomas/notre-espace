@@ -16,15 +16,15 @@ const topics = ref([
 
 const activeTopicId = ref('admin');
 
-// 2. Base de données locale synchronisée avec les identifiants réels
+// 2. Base de données locale
 const messagesByTopic = ref({
   admin: [
-    { sender: 'thomas', text: 'Tu as pensé à réserver le resto pour ce soir ? 🤔' },
-    { sender: 'zoe', text: 'Oui c\'est fait ! Table réservée pour 20h pile ❤️' }
+    { id: 1, sender: 'thomas', text: 'Tu as pensé à réserver le resto pour ce soir ? 🤔' },
+    { id: 2, sender: 'zoe', text: 'Oui c\'est fait ! Table réservée pour 20h pile ❤️' }
   ],
   droles: [
-    { sender: 'zoe', text: 'Tu as encore mis tes chaussettes à côté du bac ! 🧺' },
-    { sender: 'thomas', text: 'C\'était pour décorer le salon... 😇' }
+    { id: 3, sender: 'zoe', text: 'Tu as encore mis tes chaussettes à côté du bac ! 🧺' },
+    { id: 4, sender: 'thomas', text: 'C\'était pour décorer le salon... 😇' }
   ]
 });
 
@@ -47,16 +47,52 @@ const createNewTopic = () => {
   }
 };
 
-// Envoi du message avec l'auteur dynamique de la session
+// 🔔 Fonction d'envoi de notification Push via OneSignal
+const sendPushNotification = async (messageText) => {
+  const partnerUser = currentUser.value === 'thomas' ? 'zoe' : 'thomas';
+  const senderName = currentUser.value === 'thomas' ? 'Thomas' : 'Zoé';
+
+  try {
+    await fetch('https://onesignal.com/api/v1/notifications', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json; charset=utf-8'
+      },
+      body: JSON.stringify({
+        app_id: "cb8bf7f6-4a91-4c8c-aacc-894d16a98991",
+        include_external_user_ids: [partnerUser], // Envoie uniquement à l'autre personne !
+        headings: { fr: `Nouveau message de ${senderName} 💌` },
+        contents: { fr: messageText }
+      })
+    });
+  } catch (err) {
+    console.error("Erreur d'envoi de la notification :", err);
+  }
+};
+
+// Envoi du message avec déclenchement de la notification
 const sendMessage = () => {
-  if (newMessageText.value.trim() === '') return;
+  const text = newMessageText.value.trim();
+  if (text === '') return;
 
-  currentMessages.value.push({
+  const newMsg = {
+    id: Date.now(),
     sender: currentUser.value,
-    text: newMessageText.value.trim()
-  });
+    text: text
+  };
 
-  newMessageText.value = ''; 
+  currentMessages.value.push(newMsg);
+  newMessageText.value = '';
+
+  // Déclenche l'envoi de la notification Push
+  sendPushNotification(text);
+};
+
+// 🗑️ Fonction de suppression d'un message
+const deleteMessage = (msgId) => {
+  messagesByTopic.value[activeTopicId.value] = currentMessages.value.filter(
+    (msg) => msg.id !== msgId
+  );
 };
 </script>
 
@@ -78,17 +114,28 @@ const sendMessage = () => {
     
     <div class="messages-flow">
       <div 
-        v-for="(msg, index) in currentMessages" 
-        :key="index"
+        v-for="msg in currentMessages" 
+        :key="msg.id"
         class="bubble" 
         :class="[
           msg.sender === currentUser ? 'me' : 'other',
           msg.sender === 'thomas' ? 'bg-thomas' : 'bg-zoe'
         ]"
       >
-        <span class="sender">
-          {{ msg.sender === currentUser ? 'Moi' : (msg.sender === 'thomas' ? 'Thomas' : 'Zoé') }}
-        </span>
+        <div class="bubble-header">
+          <span class="sender">
+            {{ msg.sender === currentUser ? 'Moi' : (msg.sender === 'thomas' ? 'Thomas' : 'Zoé') }}
+          </span>
+          <!-- Bouton de suppression (uniquement pour ses propres messages) -->
+          <button 
+            v-if="msg.sender === currentUser" 
+            class="delete-btn" 
+            title="Supprimer le message"
+            @click="deleteMessage(msg.id)"
+          >
+            ✕
+          </button>
+        </div>
         <p>{{ msg.text }}</p>
       </div>
       
@@ -158,30 +205,48 @@ const sendMessage = () => {
   font-size: 0.9rem;
   line-height: 1.4;
   box-shadow: 0 2px 5px rgba(0,0,0,0.02);
+  position: relative;
 }
 .bubble p {
   margin: 0;
+  word-break: break-word;
+}
+.bubble-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2px;
 }
 .sender {
   font-size: 0.7rem;
   font-weight: bold;
-  display: block;
-  margin-bottom: 2px;
+}
+.delete-btn {
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.75rem;
+  cursor: pointer;
+  padding: 0 0 0 8px;
+  line-height: 1;
+}
+.delete-btn:hover {
+  color: #ffffff;
 }
 
-/* --- ALIGNEMENT DES BULLES (POSITION) --- */
+/* --- ALIGNEMENT DES BULLES --- */
 .bubble.me {
-  align-self: flex-end; /* Mes messages vont à droite */
+  align-self: flex-end;
   border-bottom-right-radius: 4px;
 }
 .bubble.other {
-  align-self: flex-start; /* Les messages de l'autre vont à gauche */
+  align-self: flex-start;
   border-bottom-left-radius: 4px;
 }
 
-/* --- DESIGN DES COULEURS ATTRIBUÉES AUX PRÉNOMS --- */
+/* --- DESIGN DES COULEURS --- */
 .bg-thomas {
-  background-color: #7fa4c4 !important; /* Bleu Thomas fixe */
+  background-color: #7fa4c4 !important;
   color: white !important;
 }
 .bg-thomas .sender {
@@ -189,7 +254,7 @@ const sendMessage = () => {
 }
 
 .bg-zoe {
-  background-color: #d47a6a !important; /* Terracotta Zoé fixe */
+  background-color: #d47a6a !important;
   color: white !important;
 }
 .bg-zoe .sender {
