@@ -1,10 +1,18 @@
 import { createApp } from 'vue'
 import App from './App.vue'
-import router from './router' // On importe la configuration depuis src/router/index.js
-import './style.css' // Ton fichier de styles si tu en as un
+import router from './router'
+import './style.css'
+// 1. On importe le plugin OneSignal
+import OneSignalVuePlugin from 'onesignal-vue'
 
 const app = createApp(App)
 
-app.use(router) // On dit à Vue d'utiliser le routeur AVANT de monter l'application
+app.use(router)
+
+// 2. On active OneSignal (remplace la valeur par ton vrai App ID OneSignal)
+app.use(OneSignalVuePlugin, {
+  appId: "cb8bf7f6-4a91-4c8c-aacc-894d16a98991", // Ex: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+  allowLocalhostAsSecureOrigin: true,
+})
 
 app.mount('#app')
