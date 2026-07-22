@@ -22,20 +22,28 @@ onMounted(() => {
 });
 
 // Déclencheur sur clic (exigé par Apple sur iPhone)
-const enableNotifications = () => {
-  window.OneSignalDeferred = window.OneSignalDeferred || [];
+const enableNotifications = async () => {
+  // Vérification de sécurité
+  if (!window.OneSignalDeferred) {
+    alert("Le script OneSignal n'est pas encore chargé. Attends 2 secondes et réessaie.");
+    return;
+  }
+
   window.OneSignalDeferred.push(async (OneSignal) => {
     try {
+      alert("Demande d'autorisation en cours...");
+      
       const currentUser = localStorage.getItem('currentUser') || 'thomas';
 
-      // Demande explicite de permission à iOS
-      await OneSignal.Notifications.requestPermission();
-      await OneSignal.login(currentUser);
+      // Demande la permission à iOS
+      const permission = await OneSignal.Notifications.requestPermission();
+      
+      alert("Résultat de la permission : " + permission);
 
-      notifStatus.value = 'Notifications activées avec succès ! 🎉';
+      await OneSignal.login(currentUser);
+      notifStatus.value = 'Notifications activées ! 🎉';
     } catch (err) {
-      console.error(err);
-      notifStatus.value = 'Erreur lors de l\'activation.';
+      alert("Erreur : " + err.message);
     }
   });
 };
