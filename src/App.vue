@@ -1,30 +1,96 @@
 <script setup>
-import { onMounted } from 'vue';
+import { ref, onMounted } from 'vue';
 
+const notifStatus = ref('');
+
+// Initialisation au chargement de l'app
 onMounted(() => {
-  // On attend que la librairie OneSignal soit chargée sur la page
   window.OneSignalDeferred = window.OneSignalDeferred || [];
   window.OneSignalDeferred.push(async (OneSignal) => {
     try {
       await OneSignal.init({
-        appId: "TON_VRAI_APP_ID_ONESIGNAL", // <-- Coller ton App ID ici
+        appId: "TON_VRAI_APP_ID_ONESIGNAL", // <-- Mets ton vrai App ID OneSignal ici
         allowLocalhostAsSecureOrigin: true,
       });
 
       const currentUser = localStorage.getItem('currentUser') || 'thomas';
-
-      // Demande l'autorisation pour les notifications
-      await OneSignal.Notifications.requestPermission();
-
-      // Identifie cet appareil sous le pseudo 'thomas' ou 'zoe'
       await OneSignal.login(currentUser);
     } catch (err) {
       console.warn("Erreur OneSignal :", err);
     }
   });
 });
+
+// Déclencheur sur clic (exigé par Apple sur iPhone)
+const enableNotifications = () => {
+  window.OneSignalDeferred = window.OneSignalDeferred || [];
+  window.OneSignalDeferred.push(async (OneSignal) => {
+    try {
+      const currentUser = localStorage.getItem('currentUser') || 'thomas';
+
+      // Demande explicite de permission à iOS
+      await OneSignal.Notifications.requestPermission();
+      await OneSignal.login(currentUser);
+
+      notifStatus.value = 'Notifications activées avec succès ! 🎉';
+    } catch (err) {
+      console.error(err);
+      notifStatus.value = 'Erreur lors de l\'activation.';
+    }
+  });
+};
 </script>
 
 <template>
-  <router-view />
+  <div class="app-layout">
+    <!-- Bandeau discret pour activer les notifications -->
+    <div class="notif-bar">
+      <button @click="enableNotifications" class="notif-btn">
+        🔔 Activer les notifications iPhone
+      </button>
+      <span v-if="notifStatus" class="notif-status">{{ notifStatus }}</span>
+    </div>
+
+    <!-- Affichage de tes pages via le routeur -->
+    <router-view />
+  </div>
 </template>
+
+<style scoped>
+.app-layout {
+  width: 100%;
+  min-height: 100vh;
+}
+
+.notif-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 6px;
+  background: #fffbf7;
+  border-bottom: 1px solid #f1eeeb;
+}
+
+.notif-btn {
+  background: #d47a6a;
+  color: white;
+  border: none;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: bold;
+  cursor: pointer;
+  box-shadow: 0 2px 5px rgba(212, 122, 106, 0.2);
+}
+
+.notif-btn:active {
+  transform: scale(0.96);
+}
+
+.notif-status {
+  font-size: 0.75rem;
+  color: #5c4d42;
+  font-weight: bold;
+}
+</style>
