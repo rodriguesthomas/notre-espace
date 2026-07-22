@@ -56,11 +56,13 @@ const sendPushNotification = async (messageText) => {
     await fetch('https://onesignal.com/api/v1/notifications', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json; charset=utf-8'
+        'Content-Type': 'application/json; charset=utf-8',
+        // 🔑 REMPLACE 'TA_REST_API_KEY_ICI' PAR TA VRAIE CLE ONE SIGNAL !
+        'Authorization': 'Key os_v2_app_zof7p5sksfgizkwmrfgrnkmjshu5f252nvweg7vs7dnz4c4uk3v2nhp5y6vaywc4jtf7cuey5k3m2pbtbiklzehckgbyqoidxuh7sma' 
       },
       body: JSON.stringify({
         app_id: "cb8bf7f6-4a91-4c8c-aacc-894d16a98991",
-        include_external_user_ids: [partnerUser], // Envoie uniquement à l'autre personne !
+        include_external_user_ids: [partnerUser], // Envoie uniquement au téléphone de l'autre !
         headings: { fr: `Nouveau message de ${senderName} 💌` },
         contents: { fr: messageText }
       })
