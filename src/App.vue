@@ -1,22 +1,27 @@
 <script setup>
 import { onMounted } from 'vue';
-import { useOneSignal } from 'onesignal-vue';
 
-const onesignal = useOneSignal();
+onMounted(() => {
+  // On attend que la librairie OneSignal soit chargée sur la page
+  window.OneSignalDeferred = window.OneSignalDeferred || [];
+  window.OneSignalDeferred.push(async (OneSignal) => {
+    try {
+      await OneSignal.init({
+        appId: "TON_VRAI_APP_ID_ONESIGNAL", // <-- Coller ton App ID ici
+        allowLocalhostAsSecureOrigin: true,
+      });
 
-onMounted(async () => {
-  try {
-    // 1. Récupère l'utilisateur actuellement connecté ('thomas' ou 'zoe')
-    const currentUser = localStorage.getItem('currentUser') || 'thomas';
+      const currentUser = localStorage.getItem('currentUser') || 'thomas';
 
-    // 2. Demande l'autorisation d'envoyer des notifications sur l'iPhone
-    await onesignal.Notifications.requestPermission();
-    
-    // 3. Associe cet iPhone spécifique au prénom ('thomas' ou 'zoe')
-    await onesignal.login(currentUser);
-  } catch (err) {
-    console.error("Erreur d'initialisation OneSignal :", err);
-  }
+      // Demande l'autorisation pour les notifications
+      await OneSignal.Notifications.requestPermission();
+
+      // Identifie cet appareil sous le pseudo 'thomas' ou 'zoe'
+      await OneSignal.login(currentUser);
+    } catch (err) {
+      console.warn("Erreur OneSignal :", err);
+    }
+  });
 });
 </script>
 
