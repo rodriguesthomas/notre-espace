@@ -1,29 +1,47 @@
-import { createRouter, createWebHistory } from 'vue-router';
-import Login from '../views/Login.vue';
-import Home from '../views/Home.vue';
-import AlbumView from '../views/AlbumView.vue';
+import { createRouter, createWebHistory } from 'vue-router'
 
-router.beforeEach((to, from, next) => {
-  const isAuthenticated = localStorage.getItem('isAuthenticated') === 'true';
-
-  // Si l'utilisateur est déjà connecté et essaie d'aller sur la page de login
-  if (to.path === '/login' && isAuthenticated) {
-    next('/home'); // Redirige directement vers l'application sans repasser par le login
-  } else {
-    next();
-  }
-});
+// Importe tes composants/vues selon la structure de ton projet
+import Home from '../views/Home.vue' // ou ton composant principal
+import Login from '../views/Login.vue' // ou ta page de connexion
 
 const routes = [
-  { path: '/', name: 'Login', component: Login },
-  { path: '/home', name: 'Home', component: Home },
-  { path: '/album/:owner', name: 'Album', component: AlbumView, props: true } 
-  // `:owner` permettra de savoir si on ouvre l'album de 'moi' ou 'elle'
-];
+  {
+    path: '/',
+    redirect: '/home'
+  },
+  {
+    path: '/login',
+    name: 'Login',
+    component: Login
+  },
+  {
+    path: '/home',
+    name: 'Home',
+    component: Home
+  }
+]
 
 const router = createRouter({
-  history: createWebHistory(),
+  history: createWebHistory(import.meta.env.BASE_URL),
   routes
-});
+})
 
-export default router;
+// 🛑 Protection contre la boucle d'écran noir
+router.beforeEach((to, from, next) => {
+  const isAuthenticated = localStorage.getItem('isAuthenticated') === 'true'
+
+  // 1. Si déjà connecté et qu'on essaie d'aller sur la page de connexion -> Redirige vers /home
+  if (to.path === '/login' && isAuthenticated) {
+    return next('/home')
+  }
+
+  // 2. Si PAS connecté et qu'on veut aller sur une page protégée -> Redirige vers /login
+  if (to.path !== '/login' && !isAuthenticated) {
+    return next('/login')
+  }
+
+  // 3. Dans tous les autres cas -> Laisse passer la navigation
+  next()
+})
+
+export default router

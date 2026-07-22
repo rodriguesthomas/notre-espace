@@ -7,28 +7,15 @@ const username = ref(''); // ou le champ de ton prénom
 const password = ref('');
 
 const handleLogin = () => {
-  // 1. On nettoie le prénom (ex: "Thomas" devient "thomas")
-  const formattedUser = username.value.trim().toLowerCase();
+  // Enregistre le nom (en minuscules pour éviter les fautes de frappe "Thomas" vs "thomas")
+  localStorage.setItem('currentUser', username.value.trim().toLowerCase())
+  
+  // Enregistre le statut de connexion
+  localStorage.setItem('isAuthenticated', 'true')
 
-  // 2. 💾 ON SAUVEGARDE DÉFINITIVEMENT DANS LE TÉLÉPHONE
-  localStorage.setItem('currentUser', formattedUser);
-  localStorage.setItem('isAuthenticated', 'true');
-
-  // 3. 🔔 ON ENREGISTRE LE PRÉNOM CHEZ ONESIGNAL
-  if (window.OneSignal) {
-    window.OneSignal.push(async () => {
-      if (typeof window.OneSignal.login === 'function') {
-        await window.OneSignal.login(formattedUser);
-      }
-      if (typeof window.OneSignal.setExternalUserId === 'function') {
-        await window.OneSignal.setExternalUserId(formattedUser);
-      }
-    });
-  }
-
-  // 4. On redirige vers la page principale
-  router.push('/home'); // ou ta route principale
-};
+  // Redirige vers l'accueil
+  router.push('/home')
+}
 </script>
 
 <template>
