@@ -1,53 +1,71 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { supabase } from '../supabase'; // Adapte le chemin vers ton fichier supabase.js si besoin
 
-// Récupération de la session utilisateur
+// Session utilisateur
 const currentUser = ref('thomas');
 
-onMounted(() => {
-  currentUser.value = localStorage.getItem('currentUser') || 'thomas';
-});
-
-// 1. Liste dynamique des thèmes (catégories)
+// Thèmes (catégories)
 const topics = ref([
   { id: 'admin', name: '💡 Administratif' },
   { id: 'droles', name: '😂 Moments drôles' }
 ]);
 
 const activeTopicId = ref('admin');
-
-// 2. Base de données locale
-const messagesByTopic = ref({
-  admin: [
-    { id: 1, sender: 'thomas', text: 'Tu as pensé à réserver le resto pour ce soir ? 🤔' },
-    { id: 2, sender: 'zoe', text: 'Oui c\'est fait ! Table réservée pour 20h pile ❤️' }
-  ],
-  droles: [
-    { id: 3, sender: 'zoe', text: 'Tu as encore mis tes chaussettes à côté du bac ! 🧺' },
-    { id: 4, sender: 'thomas', text: 'C\'était pour décorer le salon... 😇' }
-  ]
-});
-
+const messages = ref([]);
 const newMessageText = ref('');
+let realtimeSubscription = null;
 
-// Filtre automatique des messages selon l'onglet actif
+// Filter les messages selon la catégorie active
 const currentMessages = computed(() => {
-  return messagesByTopic.value[activeTopicId.value] || [];
+  return messages.value.filter(msg => msg.topic_id === activeTopicId.value);
 });
 
-// Création d'une nouvelle catégorie
-const createNewTopic = () => {
-  const name = prompt('Quel est le nom de la nouvelle messagerie ?');
-  
-  if (name && name.trim() !== '') {
-    const newId = 'topic_' + Date.now();
-    topics.value.push({ id: newId, name: name.trim() });
-    messagesByTopic.value[newId] = [];
-    activeTopicId.value = newId;
+// 1. Charger les messages depuis Supabase
+const fetchMessages = async () => {
+  const { data, error } = await supabase
+    .from('messages')
+    .select('*')
+    .order('created_at', { ascending: true });
+
+  if (error) {
+    console.error('Erreur chargement messages :', error);
+  } else {
+    messages.value = data || [];
   }
 };
 
-// 🔔 Fonction d'envoi de notification Push via OneSignal
+// 2. Écouter les nouveaux messages en temps réel (Realtime)
+const subscribeToMessages = () => {
+  realtimeSubscription = supabase
+    .channel('public:messages')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, (payload) => {
+      if (payload.eventType === 'INSERT') {
+        // Ajouter le nouveau message s'il n'est pas déjà dans la liste
+        if (!messages.value.some(m => m.id === payload.new.id)) {
+          messages.value.push(payload.new);
+        }
+      } else if (payload.eventType === 'DELETE') {
+        // Retirer le message supprimé
+        messages.value = messages.value.filter(m => m.id !== payload.old.id);
+      }
+    })
+    .subscribe();
+};
+
+onMounted(() => {
+  currentUser.value = localStorage.getItem('currentUser') || 'thomas';
+  fetchMessages();
+  subscribeToMessages();
+});
+
+onUnmounted(() => {
+  if (realtimeSubscription) {
+    supabase.removeChannel(realtimeSubscription);
+  }
+});
+
+// 🔔 Envoi de la notification Push via OneSignal
 const sendPushNotification = async (messageText) => {
   const partnerUser = currentUser.value === 'thomas' ? 'zoe' : 'thomas';
   const senderName = currentUser.value === 'thomas' ? 'Thomas' : 'Zoé';
@@ -57,50 +75,77 @@ const sendPushNotification = async (messageText) => {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json; charset=utf-8',
-        // 🔑 REMPLACE 'TA_REST_API_KEY_ICI' PAR TA VRAIE CLE ONE SIGNAL !
-        'Authorization': 'Key os_v2_app_zof7p5sksfgizkwmrfgrnkmjshu5f252nvweg7vs7dnz4c4uk3v2nhp5y6vaywc4jtf7cuey5k3m2pbtbiklzehckgbyqoidxuh7sma' 
+        'Authorization': `Key ${import.meta.env.VITE_ONESIGNAL_REST_KEY}`
       },
       body: JSON.stringify({
-        app_id: "cb8bf7f6-4a91-4c8c-aacc-894d16a98991",
-        include_external_user_ids: [partnerUser], // Envoie uniquement au téléphone de l'autre !
+        app_id: 'cb8bf7f6-4a91-4c8c-aacc-894d16a98991',
+        include_external_user_ids: [partnerUser],
         headings: { fr: `Nouveau message de ${senderName} 💌` },
         contents: { fr: messageText }
       })
     });
   } catch (err) {
-    console.error("Erreur d'envoi de la notification :", err);
+    console.error("Erreur d'envoi notification :", err);
   }
 };
 
-// Envoi du message avec déclenchement de la notification
-const sendMessage = () => {
+// ✉️ Envoi d'un message dans Supabase
+const sendMessage = async () => {
   const text = newMessageText.value.trim();
   if (text === '') return;
 
   const newMsg = {
-    id: Date.now(),
+    topic_id: activeTopicId.value,
     sender: currentUser.value,
     text: text
   };
 
-  currentMessages.value.push(newMsg);
   newMessageText.value = '';
 
-  // Déclenche l'envoi de la notification Push
-  sendPushNotification(text);
+  // Insertion dans Supabase
+  const { data, error } = await supabase
+    .from('messages')
+    .insert([newMsg])
+    .select();
+
+  if (error) {
+    console.error('Erreur lors de l\'envoi :', error);
+  } else if (data && data[0]) {
+    messages.value.push(data[0]);
+    // Déclenche la notification Push chez l'autre
+    sendPushNotification(text);
+  }
 };
 
-// 🗑️ Fonction de suppression d'un message
-const deleteMessage = (msgId) => {
-  messagesByTopic.value[activeTopicId.value] = currentMessages.value.filter(
-    (msg) => msg.id !== msgId
-  );
+// 🗑️ Suppression d'un message dans Supabase
+const deleteMessage = async (msgId) => {
+  const { error } = await supabase
+    .from('messages')
+    .delete()
+    .eq('id', msgId);
+
+  if (error) {
+    console.error('Erreur lors de la suppression :', error);
+  } else {
+    messages.value = messages.value.filter(msg => msg.id !== msgId);
+  }
+};
+
+// Ajouter une catégorie
+const createNewTopic = () => {
+  const name = prompt('Nom de la nouvelle catégorie :');
+  if (name && name.trim() !== '') {
+    const newId = 'topic_' + Date.now();
+    topics.value.push({ id: newId, name: name.trim() });
+    activeTopicId.value = newId;
+  }
 };
 </script>
 
 <template>
   <div class="chat-container">
     
+    <!-- En-tête des catégories -->
     <div class="chat-header">
       <span 
         v-for="topic in topics" 
@@ -114,6 +159,7 @@ const deleteMessage = (msgId) => {
       <span class="topic add-btn" @click="createNewTopic">+</span>
     </div>
     
+    <!-- Flux des messages -->
     <div class="messages-flow">
       <div 
         v-for="msg in currentMessages" 
@@ -128,11 +174,10 @@ const deleteMessage = (msgId) => {
           <span class="sender">
             {{ msg.sender === currentUser ? 'Moi' : (msg.sender === 'thomas' ? 'Thomas' : 'Zoé') }}
           </span>
-          <!-- Bouton de suppression (uniquement pour ses propres messages) -->
           <button 
             v-if="msg.sender === currentUser" 
             class="delete-btn" 
-            title="Supprimer le message"
+            title="Supprimer"
             @click="deleteMessage(msg.id)"
           >
             ✕
@@ -146,6 +191,7 @@ const deleteMessage = (msgId) => {
       </p>
     </div>
 
+    <!-- Zone de saisie -->
     <div class="chat-input-zone">
       <input 
         v-model="newMessageText" 
@@ -236,7 +282,7 @@ const deleteMessage = (msgId) => {
   color: #ffffff;
 }
 
-/* --- ALIGNEMENT DES BULLES --- */
+/* Alignement */
 .bubble.me {
   align-self: flex-end;
   border-bottom-right-radius: 4px;
@@ -246,7 +292,7 @@ const deleteMessage = (msgId) => {
   border-bottom-left-radius: 4px;
 }
 
-/* --- DESIGN DES COULEURS --- */
+/* Couleurs */
 .bg-thomas {
   background-color: #7fa4c4 !important;
   color: white !important;
@@ -271,7 +317,7 @@ const deleteMessage = (msgId) => {
   margin-top: 20px;
 }
 
-/* ZONE D'INPUT */
+/* Zone d'input */
 .chat-input-zone {
   display: flex;
   gap: 6px;
