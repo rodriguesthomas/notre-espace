@@ -9,7 +9,7 @@ onMounted(() => {
   window.OneSignalDeferred.push(async (OneSignal) => {
     try {
       await OneSignal.init({
-        appId: "TON_VRAI_APP_ID_ONESIGNAL", // <-- Mets ton vrai App ID OneSignal ici
+        appId: "cb8bf7f6-4a91-4c8c-aacc-894d16a98991", // <-- Mets ton vrai App ID OneSignal ici
         allowLocalhostAsSecureOrigin: true,
       });
 
