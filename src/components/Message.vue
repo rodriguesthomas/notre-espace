@@ -69,7 +69,7 @@ const sendPushNotification = async (messageText) => {
   const senderName = currentUser.value === 'thomas' ? 'Thomas' : 'Zoé';
 
   try {
-    await fetch('https://onesignal.com/api/v1/notifications', {
+    const res = await fetch('https://onesignal.com/api/v1/notifications', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json; charset=utf-8',
@@ -77,11 +77,19 @@ const sendPushNotification = async (messageText) => {
       },
       body: JSON.stringify({
         app_id: 'cb8bf7f6-4a91-4c8c-aacc-894d16a98991',
+        // Supporte à la fois les anciennes et nouvelles versions d'API OneSignal
+        include_aliases: {
+          external_id: [partnerUser]
+        },
         include_external_user_ids: [partnerUser],
+        target_channel: 'push',
         headings: { fr: `Nouveau message de ${senderName} 💌` },
         contents: { fr: messageText }
       })
     });
+
+    const data = await res.json();
+    console.log('Résultat de l\'envoi OneSignal :', data);
   } catch (err) {
     console.error("Erreur d'envoi notification :", err);
   }
