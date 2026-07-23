@@ -186,6 +186,7 @@ onUnmounted(() => { stopCamera(); });
 <template>
   <div class="phone-container">
     
+    <!-- APPAREIL PHOTO PLEIN ÉCRAN -->
     <div v-if="isCameraOpen" class="camera-fullscreen-overlay">
       <button @click="stopCamera" class="close-camera-btn">✕</button>
       
@@ -212,14 +213,18 @@ onUnmounted(() => { stopCamera(); });
     
     <CalendrierJour />
 
+    <!-- ZONE CENTRALE (ONGLETS + CONTENU) -->
     <main class="middle-tabs" :class="{ 'expanded-view': activeTab === 'messages' || activeTab === 'jeu' }">
       <div class="clover-grid">
         <button class="clover-leaf leaf-tl" :class="{ active: activeTab === 'notes' }" @click="activeTab = 'notes'">
           <span>Notes</span>
         </button>
+
+        <!-- ONGLET RENOMMÉ EN DESSIN (CHARGE LE WHITEBOARD) -->
         <button class="clover-leaf leaf-tr" :class="{ active: activeTab === 'messages' }" @click="activeTab = 'messages'">
-          <span>Message</span>
+          <span>Dessin 🎨</span>
         </button>
+
         <button class="clover-leaf leaf-bl" :class="{ active: activeTab === 'calendrier' }" @click="activeTab = 'calendrier'">
           <span>Agenda</span>
         </button>
@@ -230,12 +235,14 @@ onUnmounted(() => { stopCamera(); });
 
       <div class="tab-display-zone">
         <Notes v-if="activeTab === 'notes'" />
+        <!-- Affiche le composant Tableau Blanc -->
         <Whiteboard v-if="activeTab === 'messages'" />
         <Calendrier v-if="activeTab === 'calendrier'" />
         <Jeu v-if="activeTab === 'jeu'" />
       </div>
     </main>
 
+    <!-- ZONE INFÉRIEURE (DECKS PHOTOS & CAMÉRA) -->
     <footer class="bottom-camera-zone" :class="{ 'shifted-down': activeTab === 'messages' || activeTab === 'notes' || activeTab === 'calendrier' || activeTab === 'jeu'}">
       <div class="photo-deck my-photos" @click="goToAlbum('moi')">
         <div class="stacked-card card-3"></div>
@@ -249,7 +256,7 @@ onUnmounted(() => { stopCamera(); });
       </div>
 
       <button class="camera-btn" @click="openCamera">
-        <span class="camera-icon"></span>
+        <span class="camera-icon">📷</span>
       </button>
 
       <div class="photo-deck her-photos" @click="goToAlbum('elle')">
@@ -332,7 +339,7 @@ onUnmounted(() => { stopCamera(); });
   background: #fffdfa; 
   border: 1px solid #e3ded7;
   border-radius: 15px; 
-  padding: 20px; 
+  padding: 15px; 
   height: 220px; 
   overflow-y: auto; 
   box-shadow: 0 4px 12px rgba(92, 77, 66, 0.06); 
@@ -409,7 +416,6 @@ onUnmounted(() => { stopCamera(); });
   transition: transform 0.3s ease-in-out;
 }
 
-/* NETTOYAGE : Plus aucune propriété 'opacity' ne vient ternir ou effacer l'affichage ici */
 .shifted-down .my-photos {
   transform: translateY(80px) rotate(-12deg); 
 }
@@ -427,24 +433,25 @@ onUnmounted(() => { stopCamera(); });
 }
 
 .expanded-view .clover-grid {
-  height: 120px !important; 
-  width: 120px !important;
+  height: 100px !important; 
+  width: 100px !important;
   gap: 6px;                  
-  margin-bottom: 15px !important;
+  margin-bottom: 10px !important;
   overflow: visible;         
 }
 
 .expanded-view .clover-leaf {
-  font-size: 0.7rem !important;
+  font-size: 0.65rem !important;
 }
 .expanded-view .leaf-tl { border-radius: 18px 18px 4px 18px; }
 .expanded-view .leaf-tr { border-radius: 18px 18px 18px 4px; }
 .expanded-view .leaf-bl { border-radius: 18px 4px 18px 18px; }
 .expanded-view .leaf-br { border-radius: 4px 18px 18px 18px; }
 
+/* Agrandit la zone d'affichage pour que le dessin soit super à l'aise */
 .expanded-view .tab-display-zone {
   height: 380px !important; 
-  width: 92%; 
+  width: 95%; 
   border-color: #d47a6a; 
 }
 
