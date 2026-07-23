@@ -4,7 +4,7 @@ import { useRouter } from 'vue-router';
 import { supabase } from '../supabase'; 
 import CalendrierJour from '../components/CalendrierJour.vue';
 import Notes from '../components/Notes.vue';
-import Message from '../components/Message.vue';
+import Whiteboard from '../components/Whiteboard.vue';
 import Calendrier from '../components/Calendrier.vue';
 import Jeu from '../components/Jeu.vue';
 
@@ -230,7 +230,7 @@ onUnmounted(() => { stopCamera(); });
 
       <div class="tab-display-zone">
         <Notes v-if="activeTab === 'notes'" />
-        <Message v-if="activeTab === 'messages'" />
+        <Whiteboard v-if="activeTab === 'messages'" />
         <Calendrier v-if="activeTab === 'calendrier'" />
         <Jeu v-if="activeTab === 'jeu'" />
       </div>
